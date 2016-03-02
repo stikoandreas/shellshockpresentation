@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{{ page.title }}</title>
+    <title>Presentation</title>
     <meta charset="utf-8">
     <style>    
       @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
@@ -53,83 +53,93 @@ class: center, middle, inverse
 
 <!-- Body, this is the actual slides -->
 
-# SSLStrip
-Andreas Persson
-
+# Shellshock
+Andreas Persson och Oskar Edbro
+ 
 ET1490 Nätverkssäkerhet 2
 
 ---
 
-# About SSLStrip
-A Man-in-the-middle protocol downgrade attack tool from 2009.
+# About Shellshock
 
-* Tricks client into using insecure connection for sensitive data.
+An *Arbitrary Code Execution*-vulnerability
 
-* Intercepts starting HTTPS connections between client and server.
+* Introduced 1989, discovered 2014
 
-* Logs intercepted traffic.
+* Parser-bug
+	- Bash executed trailing code after function definitions
 
-![:scale 85%](sslstrip2.png)
+ ```bash
+ VAR=() { ignored; }; /bin/id
+ ```
+
+Malicious code can be injected into environment variables!
+
+???
+
+Introduced: 5 august 1989
+
+Discovered: 12 semptember 2014
 
 ---
 
-# Results
+# Shellshock and HTTP
 
-Running on my home network, I managed to
+* HTTP header fields are often stored in environment variables
+ - which means they are Shellshock vulnerable
 
-* intercept HTTPS connections from 3 active sites.
+* Can be used to run arbritary code through Bash
+ - simply by crafting special HTTP headers
 
-* sniff user credentials in plaintext
-    - from previously secure connections!
+* CGI scripts using Bash is a common attack vector
+
+```
+www.example.com/test.cgi:
+```
+```bash
+#!/bin/bash
+
+echo -e "Content-type: text/html\n\n"
+echo "Hello, $HTTP_USER_AGENT"
+```
+
+---
+
+# Exploitation
+
+We exploited the vulnerability in two ways
+
+* Using a Metasploit auxiliary module
+ - apache_mod_cgi_bash_env
+
+* Using the **curl** command line tool
+
+```
+curl -A "() { :; }; <payload>" <target-url>
+```
+
+on a server running a vulnerable version of Bash and Debian
+
+???
+
+Bash v4.1.5
+
+Debian v 6.0.10
+
+---
+
+# Mitigation
+
+Mitigated by updating Bash
+
+* The first patches came 12 days after discovery, same day as public release
+ - A final patch was released 15 days after discovery
+
+* Bash version 4.3 and onward are not vulnerable
 
 &nbsp;
 
-
-```2016-02-09 16:15:28,376 SECURE POST Data (---.com):
-    username=user&password=sniffable```
-
-```2016-02-09 16:17:10,110 SECURE POST Data (---.com):
-    [...]Username%24input=user
-    [...]Password%24input=sniffable```
-
-```2016-02-09 16:18:29,310 SECURE POST Data (---.com):
-    &email=user&password=sniffable``
-
----
-
-# Mitigation (HSTS)
-
-HSTS (HTTP Strict Transport Security)
-
-* Introduced to mitigate SSLStrip
-
-* A special responce header field
-
-* Declares that a web server will *always* use HTTPS in the future
-
-Note that
-
-* it's not always used
-
-* it needs to be preloaded in the browser
-    - or an attacker can intercept the first HSTS message
-
-*Be specific about requesting HTTPS!*
-
----
-
-# Summary
-
-* SSLStrip can easily intercept HTTPS traffic
-
-    - invisibly for the server
-    - discreetly for the client
-
-* HSTS can mitigate the attack
-
-    - preferably preloaded
-
-* Make sure your connections are encrypted on open networks
+1.5 million attacks per day were performed when the patch was released
 
 <!-- End of slides -->
 
